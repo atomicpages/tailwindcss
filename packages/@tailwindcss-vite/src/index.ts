@@ -11,12 +11,24 @@ const SPECIAL_QUERY_RE = /[?&](?:worker|sharedworker|raw|url)\b/
 const COMMON_JS_PROXY_RE = /\?commonjs-proxy/
 const INLINE_STYLE_ID_RE = /[?&]index\=\d+\.css$/
 
-export default function tailwindcss(): Plugin[] {
+type PluginOptions = {
+  /**
+   * Exclude certain files by name, pattern, or file extension.
+   * @example [".css.ts", ".module.css"]
+   */
+  exclude?: string[];
+};
+
+export default function tailwindcss(opts?: PluginOptions): Plugin[] {
   let servers: ViteDevServer[] = []
   let config: ResolvedConfig | null = null
 
   let isSSR = false
   let minify = false
+
+  function isExcludedFile(file: string) {
+    return opts?.exclude?.includes(file);
+  }
 
   let roots: DefaultMap<string, Root> = new DefaultMap((id) => {
     let cssResolver = config!.createResolver({
@@ -62,7 +74,7 @@ export default function tailwindcss(): Plugin[] {
       enforce: 'pre',
 
       async transform(src, id, options) {
-        if (!isPotentialCssRootFile(id)) return
+        if (!isPotentialCssRootFile(id) || isExcludedFile(id)) return
 
         using I = new Instrumentation()
         DEBUG && I.start('[@tailwindcss/vite] Generate CSS (serve)')
@@ -87,7 +99,7 @@ export default function tailwindcss(): Plugin[] {
       enforce: 'pre',
 
       async transform(src, id) {
-        if (!isPotentialCssRootFile(id)) return
+        if (!isPotentialCssRootFile(id) || isExcludedFile(id)) return
 
         using I = new Instrumentation()
         DEBUG && I.start('[@tailwindcss/vite] Generate CSS (build)')
